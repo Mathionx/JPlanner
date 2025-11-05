@@ -1,0 +1,1985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    
+    <title>JPlanner</title>
+    <meta name="description" content="Joseph Planner - Your offline-first personal planner.">
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#ffffff" data-theme-light="#ffffff" data-theme-dark="#1a202c">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png"> <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+      <link rel="Icon" href="Logo.png" type="Image">
+
+
+    <style>
+        /* ---
+        Joseph Planner Stylesheet
+        --- */
+
+        /* --- 1. Root & Variables --- */
+        :root {
+            /* Fonts */
+            --font-family-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --font-size-base: 16px; /* This will be changed by JS */
+            --font-size-sm: 0.875rem;
+            --font-size-md: 1rem;
+            --font-size-lg: 1.25rem;
+            --font-size-xl: 1.5rem;
+
+            /* Spacing & Radii */
+            --spacing-xs: 0.25rem;
+            --spacing-sm: 0.5rem;
+            --spacing-md: 1rem;
+            --spacing-lg: 1.5rem;
+            --radius-sm: 4px;
+            --radius-md: 8px;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+
+            /* Transitions */
+            --transition-fast: all 0.2s ease-out;
+            --transition-color: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+
+            /* Z-Indexes */
+            --z-toast: 1000;
+            --z-header: 500;
+            --z-nav: 500;
+            --z-main: 1;
+
+            /* Light Theme */
+            --bg-color: #f4f7f6; /* Off-white background */
+            --card-color: #ffffff;
+            --text-color: #1a202c;
+            --text-color-light: #555;
+            --border-color: #e2e8f0;
+            --primary-color: #3182ce;
+            --primary-color-hover: #2b6cb0;
+            --primary-gradient: linear-gradient(135deg, #3182ce 0%, #4c51bf 100%);
+            --accent-green: #38a169;
+            --accent-red: #e53e3e;
+            --accent-yellow: #ddb836;
+            --progress-bg: #e2e8f0;
+            --icon-color: #4a5568;
+            --icon-color-active: #3182ce;
+            --nav-menu-bg: #ffffff;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #1a202c; /* Dark blue/black */
+            --card-color: #2d3748;
+            --text-color: #e2e8f0;
+            --text-color-light: #a0aec0;
+            --border-color: #4a5568;
+            --primary-color: #4299e1;
+            --primary-color-hover: #63b3ed;
+            --primary-gradient: linear-gradient(135deg, #4299e1 0%, #5a67d8 100%);
+            --accent-green: #48bb78;
+            --accent-red: #f56565;
+            --accent-yellow: #f6e05e;
+            --progress-bg: #4a5568;
+            --icon-color: #a0aec0;
+            --icon-color-active: #4299e1;
+            --nav-menu-bg: #2d3748;
+        }
+
+        /* --- 2. Base & Layout --- */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            font-size: var(--font-size-base);
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: var(--font-family-sans);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: var(--transition-color);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Hide animations on initial load */
+        body.preload * {
+            transition: none !important;
+        }
+
+        /* Fixed Header */
+        .app-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-md) var(--spacing-lg);
+            background-color: var(--nav-menu-bg);
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: var(--shadow-sm);
+            z-index: var(--z-header);
+            transition: var(--transition-color);
+            
+            /* Safe Area (iOS) */
+            padding-top: calc(var(--spacing-md) + env(safe-area-inset-top));
+        }
+
+        .header-title {
+            font-size: var(--font-size-lg);
+            font-weight: 600;
+        }
+
+        /* Main Content Area */
+        .main-content {
+            padding: var(--spacing-lg);
+            /* Offset for fixed header and footer */
+            padding-top: calc(65px + var(--spacing-lg) + env(safe-area-inset-top));
+            padding-bottom: calc(70px + var(--spacing-lg) + env(safe-area-inset-bottom));
+        }
+
+        /* Page Hiding/Showing */
+        .page {
+            display: none;
+            flex-direction: column;
+            gap: var(--spacing-lg);
+        }
+        .page.active {
+            display: flex;
+        }
+        .page-title {
+            font-size: var(--font-size-xl);
+            font-weight: 700;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        /* --- 3. Navigation (Mobile & Desktop) --- */
+
+        /* Mobile Bottom Nav */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            background-color: var(--nav-menu-bg);
+            border-top: 1px solid var(--border-color);
+            box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.05);
+            z-index: var(--z-nav);
+            transition: var(--transition-color);
+            
+            /* Safe Area (iOS) */
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .bottom-nav .nav-link {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: var(--spacing-sm) 0;
+            color: var(--icon-color);
+            text-decoration: none;
+            height: 60px; /* Fixed height */
+            transition: var(--transition-fast);
+        }
+        .bottom-nav .nav-link i {
+            font-size: 1.25rem;
+        }
+        .bottom-nav .nav-link:hover {
+            background-color: rgba(0,0,0,0.05);
+        }
+        .bottom-nav .nav-link.active {
+            color: var(--icon-color-active);
+        }
+
+        /* Desktop Sidebar Nav */
+        .sidebar-nav {
+            display: none; /* Hidden on mobile */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 220px;
+            height: 100vh;
+            background-color: var(--nav-menu-bg);
+            border-right: 1px solid var(--border-color);
+            padding-top: calc(80px + env(safe-area-inset-top)); /* Below header */
+            z-index: var(--z-nav);
+            transition: var(--transition-color);
+        }
+        .sidebar-nav-list {
+            list-style: none;
+            padding: var(--spacing-md);
+        }
+        .sidebar-nav .nav-link {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            padding: var(--spacing-md);
+            text-decoration: none;
+            color: var(--text-color-light);
+            font-weight: 500;
+            border-radius: var(--radius-md);
+            transition: var(--transition-fast);
+        }
+        .sidebar-nav .nav-link i {
+            width: 20px;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+        .sidebar-nav .nav-link:hover {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+        .sidebar-nav .nav-link.active {
+            background: var(--primary-gradient);
+            color: white;
+            box-shadow: var(--shadow-md);
+        }
+
+        /* --- 4. Responsive Layout (Desktop) --- */
+        @media (min-width: 768px) {
+            body {
+                display: grid;
+                grid-template-columns: 220px 1fr; /* Sidebar, Main */
+                grid-template-rows: 65px 1fr; /* Header, Content */
+                grid-template-areas:
+                    "sidebar header"
+                    "sidebar main";
+            }
+
+            /* Hide mobile nav */
+            .bottom-nav {
+                display: none;
+            }
+
+            /* Show desktop nav */
+            .sidebar-nav {
+                display: block;
+                grid-area: sidebar;
+            }
+
+            /* Position header and main */
+            .app-header {
+                grid-area: header;
+                position: fixed; /* Still fixed, but within its grid area */
+                top: 0;
+                left: 220px;
+                right: 0;
+                /* Remove left padding for safe area, sidebar handles it */
+                padding-top: calc(var(--spacing-md));
+            }
+
+            .main-content {
+                grid-area: main;
+                padding: var(--spacing-lg);
+                /* Reset padding, header/nav is handled by grid */
+                padding-top: calc(65px + var(--spacing-lg));
+                padding-bottom: var(--spacing-lg);
+            }
+        }
+
+        /* --- 5. Components --- */
+
+        /* Card */
+        .card {
+            background-color: var(--card-color);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-sm);
+            padding: var(--spacing-lg);
+            transition: var(--transition-color);
+        }
+        .card h3 {
+            font-size: var(--font-size-lg);
+            font-weight: 600;
+            margin-bottom: var(--spacing-md);
+        }
+        .card p {
+            color: var(--text-color-light);
+            margin-bottom: var(--spacing-md);
+        }
+
+        /* Card Grid (for Home) */
+        .card-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: var(--spacing-lg);
+        }
+        @media (min-width: 1024px) {
+            .card-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--spacing-sm);
+            padding: var(--spacing-md) var(--spacing-lg);
+            font-size: var(--font-size-md);
+            font-weight: 600;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            background-color: var(--card-color);
+            color: var(--text-color);
+            cursor: pointer;
+            text-decoration: none;
+            transition: var(--transition-fast);
+            box-shadow: var(--shadow-sm);
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+            border-color: var(--primary-color);
+        }
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary {
+            background: var(--primary-gradient);
+            color: white;
+            border-color: transparent;
+        }
+        .btn-primary:hover {
+            opacity: 0.9;
+            border-color: transparent;
+        }
+
+        .btn-danger {
+            background-color: var(--accent-red);
+            color: white;
+            border-color: transparent;
+        }
+        .btn-danger:hover {
+            background-color: #c53030;
+            border-color: transparent;
+        }
+
+        .btn-sm {
+            padding: var(--spacing-xs) var(--spacing-sm);
+            font-size: var(--font-size-sm);
+        }
+        .btn-sm i {
+            font-size: 0.8rem;
+        }
+
+        .card-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-sm);
+            margin-top: var(--spacing-md);
+        }
+
+        /* Theme Toggle Switch */
+        .theme-toggle {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 28px;
+        }
+        .theme-toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .theme-toggle .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            border-radius: 34px;
+            transition: var(--transition-fast);
+        }
+        .theme-toggle .slider::before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            border-radius: 50%;
+            transition: var(--transition-fast);
+        }
+        .theme-toggle input:checked + .slider {
+            background-color: var(--primary-color);
+        }
+        .theme-toggle input:checked + .slider::before {
+            transform: translateX(22px);
+        }
+
+        /* Progress Bar */
+        .progress-bar-container {
+            width: 100%;
+            height: 16px;
+            background-color: var(--progress-bg);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            margin-bottom: var(--spacing-sm);
+        }
+        .progress-bar {
+            height: 100%;
+            width: 0%; /* Set by JS */
+            background: var(--primary-gradient);
+            border-radius: var(--radius-sm);
+            transition: width 0.5s ease-out;
+        }
+        .progress-summary {
+            margin-bottom: var(--spacing-md);
+        }
+        .progress-details {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--text-color-light);
+            font-size: var(--font-size-sm);
+        }
+        /* Color-coded progress */
+        .progress-bar[data-completion="low"] {
+            background: var(--accent-red);
+        }
+        .progress-bar[data-completion="mid"] {
+            background: var(--accent-yellow);
+        }
+        .progress-bar[data-completion="high"] {
+            background: var(--accent-green);
+        }
+
+        /* Streak Display */
+        .streak-display {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            font-weight: 600;
+        }
+        .streak-display i {
+            color: #f6ad55; /* Fire color */
+            font-size: 1.1rem;
+        }
+
+        /* --- 6. Page-Specific Styles --- */
+
+        /* Home: Quick Actions */
+        .quick-actions {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-md);
+        }
+
+        /* Home: Today's Focus (Progress Circle) */
+        .today-focus {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            gap: var(--spacing-md);
+        }
+        .progress-circle-container {
+            position: relative;
+            width: 120px;
+            height: 120px;
+        }
+        .progress-ring {
+            transform: rotate(-90deg);
+        }
+        .progress-ring-bg {
+            stroke: var(--progress-bg);
+        }
+        .progress-ring-fg {
+            stroke: var(--primary-color);
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.5s ease-out;
+        }
+        .progress-circle-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-color);
+        }
+        /* Color-coded circle */
+        .progress-ring-fg[data-completion="low"] { stroke: var(--accent-red); }
+        .progress-ring-fg[data-completion="mid"] { stroke: var(--accent-yellow); }
+        .progress-ring-fg[data-completion="high"] { stroke: var(--accent-green); }
+
+
+        /* Home: Today's Schedule (Read-only) */
+        .home-schedule-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .home-schedule-table th,
+        .home-schedule-table td {
+            padding: var(--spacing-sm);
+            border: 1px solid var(--border-color);
+            text-align: left;
+        }
+        .home-schedule-table th:first-child,
+        .home-schedule-table td:first-child {
+            width: 80px;
+            font-weight: 600;
+            color: var(--text-color-light);
+            text-align: center;
+            font-size: var(--font-size-sm);
+        }
+
+        /* Progress: Task List */
+        .task-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+        }
+        .task-list-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            padding: var(--spacing-sm);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            transition: var(--transition-fast);
+        }
+        .task-list-item label {
+            flex: 1;
+            font-size: var(--font-size-md);
+            cursor: pointer;
+            user-select: none; /* Prevent text selection on click */
+        }
+        .task-list-item input[type="checkbox"] {
+            /* Custom Checkbox */
+            appearance: none;
+            width: 22px;
+            height: 22px;
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: var(--transition-fast);
+            position: relative;
+            top: 2px;
+        }
+        .task-list-item input[type="checkbox"]:hover {
+            border-color: var(--primary-color);
+        }
+        .task-list-item input[type="checkbox"]:checked {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        .task-list-item input[type="checkbox"]:checked::before {
+            content: '\f00c'; /* Font Awesome check */
+            font-family: "Font Awesome 6 Free";
+            font-weight: 900;
+            color: white;
+            font-size: 14px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        .task-list-item.done {
+            background-color: var(--bg-color);
+            opacity: 0.7;
+        }
+        .task-list-item.done label {
+            text-decoration: line-through;
+            color: var(--text-color-light);
+        }
+
+        /* Progress: Weekly Goals */
+        .weekly-goals-chart {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            height: 100px;
+            gap: 4px;
+        }
+        .weekly-goal-day {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--spacing-xs);
+        }
+        .weekly-goal-bar {
+            width: 100%;
+            height: 0; /* Set by JS */
+            max-height: 100%;
+            background-color: var(--primary-color);
+            border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+            transition: height 0.5s ease-out;
+        }
+        .weekly-goal-label {
+            font-size: var(--font-size-sm);
+            color: var(--text-color-light);
+        }
+        .weekly-goal-bar[data-completion="low"] { background-color: var(--accent-red); }
+        .weekly-goal-bar[data-completion="mid"] { background-color: var(--accent-yellow); }
+        .weekly-goal-bar[data-completion="high"] { background-color: var(--accent-green); }
+
+
+        /* Stats: 7-Day Chart */
+        .stats-chart-container {
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-end;
+            height: 200px; /* Fixed height for chart */
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: var(--spacing-xs);
+        }
+        .chart-bar-group {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            position: relative;
+        }
+        .chart-bar {
+            width: 60%;
+            max-width: 40px;
+            height: 0; /* Set by JS */
+            background: var(--primary-gradient);
+            border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+            transition: height 0.7s ease-out;
+            cursor: pointer;
+            position: relative;
+        }
+        .chart-bar:hover {
+            opacity: 0.8;
+        }
+        .chart-bar-label {
+            font-size: var(--font-size-sm);
+            color: var(--text-color-light);
+            margin-top: var(--spacing-sm);
+        }
+        .chart-bar-tooltip {
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--card-color);
+            color: var(--text-color);
+            padding: var(--spacing-xs) var(--spacing-sm);
+            border-radius: var(--radius-sm);
+            box-shadow: var(--shadow-md);
+            font-size: var(--font-size-sm);
+            font-weight: 600;
+            opacity: 0;
+            visibility: hidden;
+            transition: var(--transition-fast);
+            white-space: nowrap;
+        }
+        .chart-bar:hover .chart-bar-tooltip {
+            opacity: 1;
+            visibility: visible;
+            top: -35px;
+        }
+        .chart-bar[data-completion="low"] { background: var(--accent-red); }
+        .chart-bar[data-completion="mid"] { background: var(--accent-yellow); }
+        .chart-bar[data-completion="high"] { background: var(--accent-green); }
+
+        /* Stats: Snapshot List */
+        .snapshot-list {
+            list-style: none;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+        }
+        .snapshot-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-sm) var(--spacing-md);
+        }
+        .snapshot-item:not(:last-child) {
+            border-bottom: 1px solid var(--border-color);
+        }
+        .snapshot-item.best-day {
+            background-color: #f0fff4; /* Light green */
+        }
+        [data-theme="dark"] .snapshot-item.best-day {
+            background-color: #2f4a3a; /* Dark green */
+        }
+        .snapshot-item-date {
+            font-weight: 500;
+        }
+        .snapshot-item-percent {
+            font-weight: 600;
+        }
+
+        /* Settings: General */
+        .setting-item {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: var(--spacing-md);
+            padding: var(--spacing-sm) 0;
+        }
+        .setting-item label {
+            flex-basis: 120px;
+            font-weight: 500;
+        }
+        .setting-item input[type="range"] {
+            flex: 1;
+        }
+        .setting-item input[type="time"] {
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: var(--spacing-sm);
+            border-radius: var(--radius-md);
+        }
+
+        /* Settings: Editable Task List */
+        .editable-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-md);
+        }
+        .editable-list-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+        .editable-list-item input[type="text"] {
+            flex: 1;
+            padding: var(--spacing-sm) var(--spacing-md);
+            font-size: var(--font-size-md);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+        .editable-list-item .btn {
+            padding: var(--spacing-sm);
+            line-height: 1;
+        }
+
+        /* (MODIFIED) Settings: Editable Notification List */
+        .editable-list-item input[type="time"] {
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: var(--spacing-sm);
+            border-radius: var(--radius-md);
+            font-size: var(--font-size-md);
+            max-width: 120px;
+        }
+
+
+        /* Settings: Editable Schedule Table */
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+        }
+        .schedule-table {
+            width: 100%;
+            min-width: 600px; /* Ensure table is wide enough to be useful */
+            border-collapse: collapse;
+        }
+        .schedule-table th,
+        .schedule-table td {
+            border: 1px solid var(--border-color);
+            text-align: left;
+            vertical-align: middle; /* Center vertically */
+            height: 60px;
+        }
+        .schedule-table th {
+            background-color: var(--bg-color);
+            padding: var(--spacing-sm);
+            font-size: var(--font-size-sm);
+            font-weight: 600;
+        }
+        .schedule-table td {
+            padding: 0;
+        }
+        .schedule-table .time-cell {
+            width: 100px; /* Wider for input */
+            padding: var(--spacing-sm);
+        }
+        .schedule-table .time-input {
+            width: 100%;
+            border: none;
+            padding: var(--spacing-sm);
+            font-family: var(--font-family-sans);
+            font-weight: 600;
+            font-size: var(--font-size-sm);
+            color: var(--text-color-light);
+            background-color: transparent;
+        }
+        .schedule-table .task-input {
+            width: 100%;
+            height: 100%;
+            border: none;
+            padding: var(--spacing-sm);
+            font-family: var(--font-family-sans);
+            font-size: var(--font-size-md);
+            background-color: transparent;
+            color: var(--text-color);
+            resize: none; /* In case we switch to textarea */
+        }
+        .schedule-table .task-input:focus,
+        .schedule-table .time-input:focus {
+            outline: 2px solid var(--primary-color);
+            background-color: var(--card-color);
+            z-index: 10;
+            position: relative;
+        }
+        .schedule-table .action-cell {
+            width: 50px;
+            text-align: center;
+            padding: var(--spacing-sm);
+        }
+
+        /* --- 7. Utilities & Helpers --- */
+        .hidden {
+            display: none !important;
+        }
+
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            bottom: -100px; /* Start off-screen */
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--card-color);
+            color: var(--text-color);
+            padding: var(--spacing-md) var(--spacing-lg);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-md);
+            z-index: var(--z-toast);
+            transition: bottom 0.5s ease-out, background-color 0.3s ease, color 0.3s ease, opacity 1s ease;
+            border: 1px solid var(--border-color);
+            
+            /* Align with bottom nav on mobile */
+            bottom: calc(70px + env(safe-area-inset-bottom));
+            opacity: 0;
+        }
+        .toast.show {
+            bottom: calc(70px + var(--spacing-md) + env(safe-area-inset-bottom));
+            opacity: 1;
+        }
+        .toast.success {
+            background-color: var(--accent-green);
+            color: white;
+            border-color: var(--accent-green);
+        }
+        .toast.error {
+            background-color: var(--accent-red);
+            color: white;
+            border-color: var(--accent-red);
+        }
+
+        @media (min-width: 768px) {
+            /* On desktop, toast is in the corner */
+            .toast {
+                left: auto;
+                right: var(--spacing-lg);
+                transform: none;
+                bottom: -100px;
+            }
+            .toast.show {
+                bottom: var(--spacing-lg);
+            }
+        }
+    </style>
+</head>
+<body class="preload"> <header class="app-header">
+        <h1 class="header-title">JPlanner</h1>
+        <div class="header-controls">
+            <label class="theme-toggle" for="theme-toggle-checkbox" aria-label="Toggle dark mode">
+                <input type="checkbox" id="theme-toggle-checkbox">
+                <span class="slider"></span>
+            </label>
+        </div>
+    </header>
+
+    <nav class="sidebar-nav" aria-label="Main navigation">
+        <ul class="sidebar-nav-list">
+            <li><a href="#home" class="nav-link active" data-page="page-home"><i class="fas fa-home"></i><span>Home</span></a></li>
+            <li><a href="#progress" class="nav-link" data-page="page-progress"><i class="fas fa-tasks"></i><span>Progress</span></a></li>
+            <li><a href="#stats" class="nav-link" data-page="page-stats"><i class="fas fa-chart-pie"></i><span>Stats</span></a></li>
+            <li><a href="#settings" class="nav-link" data-page="page-settings"><i class="fas fa-cog"></i><span>Settings</span></a></li>
+        </ul>
+    </nav>
+
+    <main class="main-content" id="main-content">
+
+        <section id="page-home" class="page active" role="region" aria-labelledby="home-title">
+            <h2 class="page-title" id="home-title">Welcome Back</h2>
+            
+            <div class="card-grid">
+                <div class="card">
+                    <h3>Quick Actions</h3>
+                    <div class="quick-actions">
+                        <button class="btn btn-primary" id="quick-action-progress" data-page="page-progress">
+                            <i class="fas fa-tasks"></i> Open Today's Progress
+                        </button>
+                        <button class="btn" id="quick-action-snapshot">
+                            <i class="fas fa-camera"></i> Save Snapshot
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Today's Focus</h3>
+                    <div class="today-focus">
+                        <div class="progress-circle-container" id="home-progress-circle">
+                            <svg class="progress-ring" width="120" height="120">
+                                <circle class="progress-ring-bg" stroke-width="10" fill="transparent" r="50" cx="60" cy="60"/>
+                                <circle class="progress-ring-fg" stroke-width="10" fill="transparent" r="50" cx="60" cy="60"/>
+                            </svg>
+                            <span class="progress-circle-text" id="home-progress-text">0%</span>
+                        </div>
+                        <div class="streak-display" id="home-streak-display">
+                            <i class="fas fa-fire"></i>
+                            <span id="home-streak-count">0 days</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Today's Schedule</h3>
+                <div class="schedule-container" id="home-schedule-container" aria-live="polite">
+                    <p>Loading schedule...</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="page-progress" class="page" role="region" aria-labelledby="progress-title">
+            <h2 class="page-title" id="progress-title">Daily Progress</h2>
+
+            <div class="card">
+                <h3>Today's Tasks</h3>
+                <ul class="task-list" id="task-list" aria-live="polite">
+                    </ul>
+            </div>
+
+            <div class="card">
+                <h3>Summary</h3>
+                <div class="progress-summary">
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" id="progress-bar-inner"></div>
+                    </div>
+                    <div class="progress-details">
+                        <span id="progress-text">Completed 0 / 0 (0%)</span>
+                        <div class="streak-display" id="progress-streak-display">
+                            <i class="fas fa-fire"></i>
+                            <span id="progress-streak-count">0-day streak</span>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn btn-primary" id="save-snapshot-btn">
+                    <i class="fas fa-camera"></i> Save Progress Snapshot
+                </button>
+            </div>
+
+            <div class="card">
+                <h3>Weekly Goals</h3>
+                <p>Completion for the last 7 days.</p>
+                <div class="weekly-goals-chart" id="weekly-goals-chart">
+                    </div>
+            </div>
+        </section>
+
+        <section id="page-stats" class="page" role="region" aria-labelledby="stats-title">
+            <h2 class="page-title" id="stats-title">Statistics</h2>
+
+            <div class="card">
+                <h3>Weekly Report</h3>
+                <div class="stats-chart-container" id="stats-chart-container">
+                    </div>
+            </div>
+
+            <div class="card">
+                <h3>History (Snapshots)</h3>
+                <ul class="snapshot-list" id="snapshot-list">
+                    </ul>
+                <div class="card-actions">
+                    <button class="btn" id="export-csv-btn"><i class="fas fa-file-csv"></i> Export as CSV</button>
+                    <button class="btn btn-danger" id="clear-history-btn"><i class="fas fa-trash"></i> Clear History</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="page-settings" class="page" role="region" aria-labelledby="settings-title">
+            <h2 class="page-title" id="settings-title">Settings</h2>
+
+            <div class="card">
+                <h3>Appearance</h3>
+                <div class="setting-item">
+                    <label for="font-size-slider">Font Size</label>
+                    <input type="range" id="font-size-slider" min="80" max="140" step="10" value="100">
+                    <span id="font-size-value">100%</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Edit Daily Tasks</h3>
+                <p>Set your 3–8 recurring daily tasks.</p>
+                <div id="edit-tasks-list" class="editable-list">
+                    </div>
+                <button class="btn" id="add-task-template-btn"><i class="fas fa-plus"></i> Add Task</button>
+            </div>
+
+            <div class="card">
+                <h3>Edit Weekly Schedule</h3>
+                <div class="table-container">
+                    <table class="schedule-table" id="edit-schedule-table">
+                        </table>
+                </div>
+                <div class="card-actions">
+                    <button class="btn" id="add-schedule-time-btn"><i class="fas fa-plus"></i> Add Time Row</button>
+                    <button class="btn btn-primary" id="save-schedule-btn"><i class="fas fa-save"></i> Save Schedule</button>
+                    <button class="btn" id="restore-schedule-btn"><i class="fas fa-undo"></i> Restore Default</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Notifications</h3>
+                <p>Get reminders for your tasks. Reminders only work if the app is open.</p>
+                <button class="btn" id="enable-notifications-btn"><i class="fas fa-bell"></i> Enable Notifications</button>
+                
+                <div id="notification-settings" class="hidden">
+                    <div id="edit-notifications-list" class="editable-list" style="margin-top: 1rem;">
+                        </div>
+                    <button class="btn" id="add-reminder-btn"><i class="fas fa-plus"></i> Add Reminder</button>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <nav class="bottom-nav" aria-label="Main mobile navigation">
+        <a href="#home" class="nav-link active" data-page="page-home" aria-label="Home">
+            <i class="fas fa-home"></i>
+        </a>
+        <a href="#progress" class="nav-link" data-page="page-progress" aria-label="Progress">
+            <i class="fas fa-tasks"></i>
+        </a>
+        <a href="#stats" class="nav-link" data-page="page-stats" aria-label="Stats">
+            <i class="fas fa-chart-pie"></i>
+        </a>
+        <a href="#settings" class="nav-link" data-page="page-settings" aria-label="Settings">
+            <i class="fas fa-cog"></i>
+        </a>
+    </nav>
+
+    <div id="toast-notification" class="toast" role="alert" aria-live="assertive">
+        <span id="toast-message"></span>
+    </div>
+    
+    <script>
+        /* ---
+        Joseph Planner JavaScript
+        --- */
+        document.addEventListener('DOMContentLoaded', () => {
+
+            /* --- 1. DOM Element Cache (MODIFIED) --- */
+            const dom = {
+                body: document.body,
+                mainContent: document.getElementById('main-content'),
+                appHeader: document.querySelector('.app-header'),
+                themeToggle: document.getElementById('theme-toggle-checkbox'),
+                themeColorMeta: document.querySelector('meta[name="theme-color"]'),
+                
+                // Navigation
+                navLinks: document.querySelectorAll('.nav-link'),
+                pages: document.querySelectorAll('.page'),
+                
+                // Home
+                quickActionProgress: document.getElementById('quick-action-progress'),
+                quickActionSnapshot: document.getElementById('quick-action-snapshot'),
+                homeProgressCircle: document.getElementById('home-progress-circle').querySelector('.progress-ring-fg'),
+                homeProgressText: document.getElementById('home-progress-text'),
+                homeStreakDisplay: document.getElementById('home-streak-display'),
+                homeStreakCount: document.getElementById('home-streak-count'),
+                homeScheduleContainer: document.getElementById('home-schedule-container'),
+                
+                // Progress
+                taskList: document.getElementById('task-list'),
+                progressBarInner: document.getElementById('progress-bar-inner'),
+                progressText: document.getElementById('progress-text'),
+                progressStreakDisplay: document.getElementById('progress-streak-display'),
+                progressStreakCount: document.getElementById('progress-streak-count'),
+                saveSnapshotBtn: document.getElementById('save-snapshot-btn'),
+                weeklyGoalsChart: document.getElementById('weekly-goals-chart'),
+
+                // Stats
+                statsChartContainer: document.getElementById('stats-chart-container'),
+                snapshotList: document.getElementById('snapshot-list'),
+                exportCsvBtn: document.getElementById('export-csv-btn'),
+                clearHistoryBtn: document.getElementById('clear-history-btn'),
+
+                // Settings
+                fontSizeSlider: document.getElementById('font-size-slider'),
+                fontSizeValue: document.getElementById('font-size-value'),
+                editTasksList: document.getElementById('edit-tasks-list'),
+                addTaskTemplateBtn: document.getElementById('add-task-template-btn'),
+                editScheduleTable: document.getElementById('edit-schedule-table'),
+                saveScheduleBtn: document.getElementById('save-schedule-btn'),
+                restoreScheduleBtn: document.getElementById('restore-schedule-btn'),
+                addScheduleTimeBtn: document.getElementById('add-schedule-time-btn'),
+
+                // Notifications (MODIFIED)
+                enableNotificationsBtn: document.getElementById('enable-notifications-btn'),
+                notificationSettings: document.getElementById('notification-settings'),
+                editNotificationsList: document.getElementById('edit-notifications-list'),
+                addReminderBtn: document.getElementById('add-reminder-btn'),
+
+                // Toast
+                toast: document.getElementById('toast-notification'),
+                toastMessage: document.getElementById('toast-message'),
+            };
+
+            /* --- 2. Default State & Storage (MODIFIED) --- */
+            const STORAGE_KEY = 'josephPlannerState';
+
+            const defaultSchedule = {
+                '08:00': { mon: 'Wake Up', tue: 'Wake Up', wed: 'Wake Up', thu: 'Wake Up', fri: 'Wake Up', sat: '', sun: '' },
+                '09:00': { mon: 'Study', tue: 'Study', wed: 'Study', thu: 'Study', fri: 'Study', sat: 'Review', sun: 'Plan Week' },
+                '10:00': { mon: '', tue: '', wed: '', thu: '', fri: '', sat: '', sun: '' },
+                '11:00': { mon: 'Study', tue: 'Study', wed: 'Study', thu: 'Study', fri: 'Study', sat: '', sun: '' },
+                '12:00': { mon: 'Lunch', tue: 'Lunch', wed: 'Lunch', thu: 'Lunch', fri: 'Lunch', sat: 'Lunch', sun: 'Lunch' },
+                '13:00': { mon: '', tue: '', wed: '', thu: '', fri: '', sat: '', sun: '' },
+                '14:00': { mon: 'Read', tue: 'Project', wed: 'Read', thu: 'Project', fri: 'Read', sat: 'Hobby', sun: 'Relax' },
+                '15:00': { mon: '', tue: 'Project', wed: '', thu: 'Project', fri: '', sat: 'Hobby', sun: 'Relax' },
+                '16:00': { mon: 'Gym', tue: '', wed: 'Gym', thu: '', fri: 'Gym', sat: 'Social', sun: '' },
+                '17:00': { mon: 'Gym', tue: 'Cook', wed: 'Gym', thu: 'Cook', fri: 'Gym', sat: 'Social', sun: 'Cook' },
+            };
+
+            const defaultTaskTemplates = [
+                { id: 1, text: 'Morning Study Session (2h)' },
+                { id: 2, text: 'Read 30 Pages' },
+                { id: 3, text: 'Gym Workout' },
+                { id: 4, text: 'Code Project (1h)' },
+                { id: 5, text: 'Review Daily Goals' },
+            ];
+
+            const defaultState = {
+                theme: 'light',
+                fontSize: 100,
+                lastVisit: new Date().toDateString(),
+                currentTasks: [], // Will be populated from templates
+                taskTemplates: defaultTaskTemplates,
+                schedule: defaultSchedule,
+                snapshots: [], // { date: 'YYYY-MM-DD', completion: 80 }
+                streak: { current: 0, best: 0, lastUpdate: null },
+                notificationsEnabled: false, // (NEW)
+                reminders: [ // (NEW)
+                    {id: 1, text: 'Study', time: '09:00'}, 
+                    {id: 2, text: 'Gym', time: '16:00'}
+                ]
+            };
+
+            let state = {};
+
+            /* --- 3. State Management Functions --- */
+
+            /**
+             * Loads state from localStorage or sets defaults
+             */
+            function loadState() {
+                const storedState = localStorage.getItem(STORAGE_KEY);
+                state = storedState ? JSON.parse(storedState) : { ...defaultState };
+                
+                // Ensure defaults are merged in case new properties are added
+                state = { ...defaultState, ...state };
+
+                if (!state.schedule || Object.keys(state.schedule).length === 0) {
+                    state.schedule = defaultSchedule;
+                }
+                
+                // (NEW) Failsafe for reminders
+                if (!state.reminders) {
+                    state.reminders = defaultState.reminders;
+                }
+
+                // --- CRITICAL: Daily Task & Streak Reset Logic ---
+                const today = new Date().toDateString();
+                if (state.lastVisit !== today) {
+                    console.log('New day detected. Resetting tasks and checking streak.');
+                    const yesterday = new Date(Date.now() - 86400000).toDateString();
+                    const lastProgress = calculateProgress(state.currentTasks);
+
+                    // Check if streak should be updated or reset
+                    if (state.lastVisit === yesterday && lastProgress.percent >= 80) {
+                        state.streak.current += 1; // Increment streak
+                        if (state.streak.current > state.streak.best) {
+                            state.streak.best = state.streak.current;
+                        }
+                        state.streak.lastUpdate = today;
+                    } else if (state.lastVisit !== yesterday) {
+                        // Missed more than one day, reset streak
+                        state.streak.current = 0;
+                    }
+                    
+                    // Reset tasks for the new day
+                    state.currentTasks = state.taskTemplates.map(t => ({ id: t.id, text: t.text, done: false }));
+                    state.lastVisit = today;
+                    
+                    saveState(); // Save the new day's state
+                }
+                
+                if (!state.currentTasks || state.currentTasks.length === 0) {
+                     state.currentTasks = state.taskTemplates.map(t => ({ id: t.id, text: t.text, done: false }));
+                     saveState();
+                }
+            }
+
+            /**
+             * Saves the current state object to localStorage
+             */
+            function saveState() {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            }
+
+            /**
+             * Resets a specific part of the state to default
+             * @param {string} key - 'schedule' or 'tasks'
+             */
+            function restoreDefault(key) {
+                if (key === 'schedule') {
+                    state.schedule = { ...defaultSchedule };
+                    renderScheduleEditor();
+                    showToast('Default schedule restored.', 'success');
+                } else if (key === 'tasks') {
+                    state.taskTemplates = [...defaultTaskTemplates];
+                    state.currentTasks = state.taskTemplates.map(t => ({ id: t.id, text: t.text, done: false }));
+                    renderTaskTemplateEditor();
+                    renderProgressPage();
+                    showToast('Default tasks restored.', 'success');
+                }
+                saveState();
+            }
+
+            /* --- 4. UI & Theme Functions --- */
+
+            function applyTheme(theme) {
+                state.theme = theme;
+                dom.body.dataset.theme = theme;
+                dom.themeToggle.checked = (theme === 'dark');
+                const newColor = theme === 'dark' ? 
+                    dom.themeColorMeta.dataset.themeDark : 
+                    dom.themeColorMeta.dataset.themeLight;
+                dom.themeColorMeta.setAttribute('content', newColor);
+            }
+
+            function applyFontSize(size) {
+                state.fontSize = Number(size);
+                document.documentElement.style.fontSize = `${(state.fontSize / 100) * 16}px`;
+                dom.fontSizeValue.textContent = `${size}%`;
+            }
+
+            let toastTimer;
+            function showToast(message, type = 'info') {
+                clearTimeout(toastTimer);
+                dom.toastMessage.textContent = message;
+                dom.toast.className = 'toast show'; 
+                if (type === 'success') {
+                    dom.toast.classList.add('success');
+                } else if (type === 'error') {
+                    dom.toast.classList.add('error');
+                }
+                toastTimer = setTimeout(() => {
+                    dom.toast.classList.remove('show');
+                }, 3000);
+            }
+
+            /* --- 5. Navigation --- */
+
+            function handleNavigation(e) {
+                e.preventDefault();
+                const navLink = e.target.closest('.nav-link');
+                if (!navLink) return;
+                const pageId = navLink.dataset.page;
+                if (pageId) {
+                    showPage(pageId);
+                    dom.navLinks.forEach(link => link.classList.remove('active'));
+                    document.querySelectorAll(`.nav-link[data-page="${pageId}"]`).forEach(link => link.classList.add('active'));
+                }
+            }
+
+            function showPage(pageId) {
+                dom.pages.forEach(page => {
+                    page.classList.remove('active');
+                });
+                const newPage = document.getElementById(pageId);
+                if (newPage) {
+                    newPage.classList.add('active');
+                    dom.mainContent.scrollTop = 0;
+                    if (pageId === 'page-home') renderHomePage();
+                    if (pageId === 'page-progress') renderProgressPage();
+                    if (pageId === 'page-stats') renderStatsPage();
+                    if (pageId === 'page-settings') renderSettingsPage(); // (MODIFIED) Render settings on show
+                }
+            }
+
+            /* --- 6. Page Render Functions --- */
+
+            function renderHomePage() {
+                const progress = calculateProgress(state.currentTasks);
+                updateProgressCircle(progress.percent);
+                dom.homeStreakCount.textContent = `${state.streak.current} ${state.streak.current === 1 ? 'day' : 'days'}`;
+                dom.homeStreakDisplay.style.display = state.streak.current > 0 ? 'flex' : 'none';
+                renderHomeSchedule();
+            }
+
+            function renderHomeSchedule() {
+                const today = new Date().getDay();
+                const dayMap = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+                const todayKey = dayMap[today];
+                let html = '<table class="home-schedule-table"><thead><tr><th>Time</th><th>Task</th></tr></thead><tbody>';
+                let hasTasks = false;
+                const sortedTimes = Object.keys(state.schedule).sort();
+                for (const time of sortedTimes) {
+                    const task = state.schedule[time][todayKey];
+                    if (task) {
+                        html += `<tr><td class="time-cell">${time}</td><td>${task}</td></tr>`;
+                        hasTasks = true;
+                    }
+                }
+                if (!hasTasks) {
+                    html = '<p>No tasks scheduled for today. Enjoy your free day!</p>';
+                } else {
+                    html += '</tbody></table>';
+                }
+                dom.homeScheduleContainer.innerHTML = html;
+            }
+
+            function renderProgressPage() {
+                if (state.currentTasks.length === 0) {
+                    dom.taskList.innerHTML = `<li>No daily tasks defined. <a href="#settings" data-page="page-settings" class="nav-link-inline">Go to Settings to add some.</a></li>`;
+                } else {
+                    dom.taskList.innerHTML = state.currentTasks.map(task => `
+                        <li class="task-list-item ${task.done ? 'done' : ''}" data-task-id="${task.id}">
+                            <input type="checkbox" id="task-${task.id}" ${task.done ? 'checked' : ''}>
+                            <label for="task-${task.id}">${task.text}</label>
+                        </li>
+                    `).join('');
+                }
+                updateProgressUI();
+                renderWeeklyGoals();
+            }
+
+            function renderStatsPage() {
+                renderStatsChart();
+                renderSnapshotList();
+            }
+
+            /**
+             * Renders all settings components (MODIFIED)
+             */
+            function renderSettingsPage() {
+                // Font Size
+                dom.fontSizeSlider.value = state.fontSize;
+                dom.fontSizeValue.textContent = `${state.fontSize}%`;
+                
+                // Task Templates
+                renderTaskTemplateEditor();
+                
+                // Schedule
+                renderScheduleEditor();
+                
+                // Notifications (MODIFIED)
+                dom.notificationSettings.classList.toggle('hidden', !state.notificationsEnabled);
+                dom.enableNotificationsBtn.classList.toggle('hidden', state.notificationsEnabled);
+                if (state.notificationsEnabled) {
+                    renderNotificationEditor(); // (NEW) Call render
+                }
+            }
+
+            /* --- 7. Task & Progress Logic --- */
+
+            function toggleTask(taskId) {
+                const task = state.currentTasks.find(t => t.id === taskId);
+                if (task) {
+                    task.done = !task.done;
+                    const oldProgress = calculateProgress(state.currentTasks.filter(t => t.id !== taskId));
+                    const newProgress = calculateProgress(state.currentTasks);
+                    if (newProgress.percent >= 80 && oldProgress.percent < 80) {
+                        if (state.streak.lastUpdate !== new Date().toDateString()) {
+                            const yesterday = new Date(Date.now() - 86400000).toDateString();
+                            state.streak.current = (state.streak.lastUpdate === yesterday) ? state.streak.current + 1 : 1;
+                            if (state.streak.current > state.streak.best) {
+                                state.streak.best = state.streak.current;
+                            }
+                            state.streak.lastUpdate = new Date().toDateString();
+                            showToast(`Streak extended to ${state.streak.current} days! 🔥`, 'success');
+                        }
+                    }
+                    saveState();
+                    renderProgressPage(); 
+                    renderHomePage(); 
+                }
+            }
+
+            function calculateProgress(tasks) {
+                if (!tasks || tasks.length === 0) {
+                    return { done: 0, total: 0, percent: 0 };
+                }
+                const total = tasks.length;
+                const done = tasks.filter(t => t.done).length;
+                const percent = total > 0 ? Math.round((done / total) * 100) : 0;
+                return { done, total, percent };
+            }
+            
+            function getCompletionLevel(percent) {
+                if (percent >= 80) return 'high';
+                if (percent >= 50) return 'mid';
+                return 'low';
+            }
+
+            function updateProgressUI() {
+                const progress = calculateProgress(state.currentTasks);
+                const level = getCompletionLevel(progress.percent);
+                dom.progressBarInner.style.width = `${progress.percent}%`;
+                dom.progressBarInner.dataset.completion = level;
+                dom.progressText.textContent = `Completed ${progress.done} / ${progress.total} (${progress.percent}%)`;
+                dom.progressStreakCount.textContent = `${state.streak.current}-day streak`;
+                dom.progressStreakDisplay.style.display = state.streak.current > 0 ? 'flex' : 'none';
+                updateProgressCircle(progress.percent);
+            }
+
+            function updateProgressCircle(percent) {
+                const circle = dom.homeProgressCircle;
+                const radius = circle.r.baseVal.value;
+                const circumference = 2 * Math.PI * radius;
+                const offset = circumference - (percent / 100) * circumference;
+                circle.style.strokeDasharray = `${circumference} ${circumference}`;
+                circle.style.strokeDashoffset = offset;
+                circle.dataset.completion = getCompletionLevel(percent);
+                dom.homeProgressText.textContent = `${percent}%`;
+            }
+
+            function saveSnapshot() {
+                const today = new Date().toISOString().split('T')[0];
+                const progress = calculateProgress(state.currentTasks);
+                const existingIndex = state.snapshots.findIndex(s => s.date === today);
+                const snapshot = { date: today, completion: progress.percent };
+                if (existingIndex > -1) {
+                    state.snapshots[existingIndex] = snapshot;
+                    showToast('Today\'s snapshot updated.', 'success');
+                } else {
+                    state.snapshots.push(snapshot);
+                    showToast('Progress snapshot saved!', 'success');
+                }
+                state.snapshots.sort((a, b) => new Date(b.date) - new Date(a.date));
+                saveState();
+                renderStatsPage(); 
+                renderWeeklyGoals();
+            }
+            
+            function renderWeeklyGoals() {
+                const last7Days = getLastNDays(7);
+                const dayMap = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                let html = '';
+                for (const day of last7Days.reverse()) { 
+                    const dateObj = new Date(day.date);
+                    const dayName = dayMap[dateObj.getUTCDay()];
+                    const level = getCompletionLevel(day.completion);
+                    html += `
+                        <div class="weekly-goal-day" title="${day.date} (${day.completion}%)">
+                            <div class="weekly-goal-bar" style="height: ${day.completion}%" data-completion="${level}"></div>
+                            <span class="weekly-goal-label">${dayName}</span>
+                        </div>
+                    `;
+                }
+                dom.weeklyGoalsChart.innerHTML = html;
+            }
+
+            /* --- 8. Stats & History Logic --- */
+
+            function getLastNDays(n) {
+                const days = [];
+                const today = new Date();
+                today.setHours(0, 0, 0, 0); 
+                for (let i = 0; i < n; i++) {
+                    const date = new Date(today);
+                    date.setDate(date.getDate() - i);
+                    const dateString = date.toISOString().split('T')[0];
+                    let completion = 0;
+                    if (i === 0) { 
+                        completion = calculateProgress(state.currentTasks).percent;
+                    } else {
+                        const snapshot = state.snapshots.find(s => s.date === dateString);
+                        completion = snapshot ? snapshot.completion : 0;
+                    }
+                    days.push({ date: dateString, completion });
+                }
+                return days; 
+            }
+
+            function renderStatsChart() {
+                const data = getLastNDays(7).reverse();
+                const dayMap = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+                dom.statsChartContainer.innerHTML = data.map(day => {
+                    const dateObj = new Date(day.date);
+                    const dayName = dayMap[dateObj.getUTCDay()]; 
+                    const level = getCompletionLevel(day.completion);
+                    return `
+                        <div class="chart-bar-group">
+                            <div class="chart-bar" style="height: ${day.completion}%" data-completion="${level}">
+                                <span class="chart-bar-tooltip">${day.completion}%</span>
+                            </div>
+                            <span class="chart-bar-label">${dayName}</span>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            function renderSnapshotList() {
+                if (state.snapshots.length === 0) {
+                    dom.snapshotList.innerHTML = '<li class="snapshot-item">No history saved yet.</li>';
+                    return;
+                }
+                const bestCompletion = Math.max(0, ...state.snapshots.map(s => s.completion));
+                dom.snapshotList.innerHTML = state.snapshots.map(s => {
+                    const isBest = s.completion === bestCompletion && bestCompletion > 0;
+                    return `
+                        <li class="snapshot-item ${isBest ? 'best-day' : ''}">
+                            <span class="snapshot-item-date">${s.date} ${isBest ? '⭐' : ''}</span>
+                            <span class="snapshot-item-percent">${s.completion}%</span>
+                        </li>
+                    `;
+                }).join('');
+            }
+
+            function exportCSV() {
+                if (state.snapshots.length === 0) {
+                    showToast('No history to export.', 'error');
+                    return;
+                }
+                let csvContent = "data:text/csv;charset=utf-8,Date,Completion\n";
+                state.snapshots.forEach(s => {
+                    csvContent += `${s.date},${s.completion}\n`;
+                });
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", "joseph_planner_history.csv");
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                showToast('History exported!', 'success');
+            }
+
+            function clearHistory() {
+                if (confirm('Are you sure you want to clear all snapshot history? This cannot be undone.')) {
+                    state.snapshots = [];
+                    saveState();
+                    renderStatsPage();
+                    showToast('History cleared.', 'success');
+                }
+            }
+
+            /* --- 9. Settings & Schedule Logic --- */
+
+            function renderTaskTemplateEditor() {
+                dom.editTasksList.innerHTML = state.taskTemplates.map((task, index) => `
+                    <div class="editable-list-item" data-task-template-id="${task.id}">
+                        <input type="text" value="${task.text}" data-index="${index}" placeholder="Task description">
+                        <button class="btn btn-danger" data-action="remove-task" data-index="${index}" aria-label="Remove task">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                `).join('');
+            }
+
+            function handleTaskTemplateChange(e) {
+                const target = e.target;
+                if (target.matches('input[type="text"]')) {
+                    const index = Number(target.dataset.index);
+                    state.taskTemplates[index].text = target.value;
+                    const currentTask = state.currentTasks.find(t => t.id === state.taskTemplates[index].id);
+                    if (currentTask && !currentTask.done) {
+                        currentTask.text = target.value;
+                    }
+                    saveState();
+                } else if (target.closest('[data-action="remove-task"]')) {
+                    if (state.taskTemplates.length <= 3) {
+                        showToast('You must have at least 3 tasks.', 'error');
+                        return;
+                    }
+                    const index = Number(target.closest('button').dataset.index);
+                    const removedTask = state.taskTemplates.splice(index, 1)[0];
+                    state.currentTasks = state.currentTasks.filter(t => t.id !== removedTask.id);
+                    saveState();
+                    renderTaskTemplateEditor(); 
+                    renderProgressPage(); 
+                }
+            }
+
+            function addTaskTemplate() {
+                if (state.taskTemplates.length >= 8) {
+                    showToast('You can have a maximum of 8 tasks.', 'error');
+                    return;
+                }
+                const newId = Date.now(); 
+                const newTask = { id: newId, text: 'New Task' };
+                state.taskTemplates.push(newTask);
+                state.currentTasks.push({ id: newId, text: 'New Task', done: false });
+                saveState();
+                renderTaskTemplateEditor();
+                renderProgressPage();
+            }
+
+            function renderScheduleEditor() {
+                const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+                const times = Object.keys(state.schedule).sort();
+                let thead = '<thead><tr><th class="time-cell">Time</th>';
+                days.forEach(day => thead += `<th>${day.charAt(0).toUpperCase() + day.slice(1)}</th>`);
+                thead += '<th class="action-cell">Del</th></tr></thead>';
+                let tbody = '<tbody>';
+                times.forEach(time => {
+                    tbody += `<tr>
+                        <td class="time-cell">
+                            <input type="text" class="time-input" value="${time}" aria-label="Schedule time ${time}">
+                        </td>
+                    `;
+                    days.forEach(day => {
+                        const task = state.schedule[time][day] || '';
+                        tbody += `
+                            <td>
+                                <input type="text" class="task-input" value="${task}" data-day="${day}" aria-label="Task for ${day} at ${time}">
+                            </td>
+                        `;
+                    });
+                    tbody += `
+                        <td class="action-cell">
+                            <button class="btn btn-danger btn-sm" data-action="remove-time-row" aria-label="Remove ${time} row">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    `;
+                });
+                tbody += '</tbody>';
+                dom.editScheduleTable.innerHTML = thead + tbody;
+            }
+
+            function saveSchedule() {
+                const newSchedule = {};
+                const rows = dom.editScheduleTable.querySelectorAll('tbody tr');
+                let hasDuplicates = false;
+                let hasInvalidTime = false;
+                rows.forEach(row => {
+                    const timeInput = row.querySelector('.time-input');
+                    const newTime = timeInput.value.trim();
+                    if (!/^\d{2}:\d{2}$/.test(newTime)) { 
+                        hasInvalidTime = true;
+                        return;
+                    }
+                    if (newSchedule[newTime]) {
+                        hasDuplicates = true;
+                        return;
+                    }
+                    newSchedule[newTime] = {};
+                    const taskInputs = row.querySelectorAll('.task-input');
+                    taskInputs.forEach(input => {
+                        const day = input.dataset.day;
+                        newSchedule[newTime][day] = input.value;
+                    });
+                });
+                if (hasInvalidTime) {
+                    showToast('Invalid time format. Please use HH:MM.', 'error');
+                    return;
+                }
+                if (hasDuplicates) {
+                    showToast('Duplicate times found. Please ensure all times are unique.', 'error');
+                    return;
+                }
+                state.schedule = newSchedule;
+                saveState();
+                renderHomeSchedule(); 
+                renderScheduleEditor(); 
+                showToast('Schedule saved!', 'success');
+            }
+
+            function addScheduleTimeRow() {
+                const newTime = prompt("Enter new time (HH:MM format, e.g., 18:30):");
+                if (!newTime) return; 
+                if (!/^\d{2}:\d{2}$/.test(newTime)) {
+                    showToast('Invalid time format. Please use HH:MM.', 'error');
+                    return;
+                }
+                if (state.schedule[newTime]) {
+                    showToast('That time already exists.', 'error');
+                    return;
+                }
+                state.schedule[newTime] = { mon: '', tue: '', wed: '', thu: '', fri: '', sat: '', sun: '' };
+                renderScheduleEditor();
+                showToast('Time row added. Don\'t forget to save!', 'info');
+            }
+
+            function handleScheduleTableClicks(e) {
+                const removeBtn = e.target.closest('[data-action="remove-time-row"]');
+                if (removeBtn) {
+                    const row = removeBtn.closest('tr');
+                    const time = row.querySelector('.time-input').value;
+                    if (confirm(`Are you sure you want to remove the "${time}" row? This will be saved immediately.`)) {
+                        delete state.schedule[time];
+                        saveState(); 
+                        renderScheduleEditor(); 
+                        renderHomeSchedule(); 
+                        showToast(`Row ${time} removed.`, 'success');
+                    }
+                }
+            }
+
+            /* --- 10. Notification Logic (MODIFIED) --- */
+
+            /**
+             * (NEW) Renders the editable list of reminders
+             */
+            function renderNotificationEditor() {
+                if (state.reminders.length === 0) {
+                    dom.editNotificationsList.innerHTML = '<p>No reminders added yet.</p>';
+                    return;
+                }
+                dom.editNotificationsList.innerHTML = state.reminders.map(r => `
+                    <div class="editable-list-item" data-reminder-id="${r.id}">
+                        <input type="text" data-key="text" value="${r.text}" placeholder="Reminder text" aria-label="Reminder text">
+                        <input type="time" data-key="time" value="${r.time}" aria-label="Reminder time">
+                        <button class="btn btn-danger btn-sm" data-action="remove-reminder" aria-label="Remove reminder">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                `).join('');
+            }
+
+            /**
+             * (NEW) Handles adding a new reminder
+             */
+            function handleAddReminder() {
+                const newId = Date.now();
+                state.reminders.push({ id: newId, text: 'New Reminder', time: '12:00' });
+                saveState();
+                renderNotificationEditor();
+            }
+
+            /**
+             * (NEW) Handles changes or removal of reminders
+             */
+            function handleNotificationChange(e) {
+                const target = e.target;
+                const item = target.closest('.editable-list-item');
+                if (!item) return;
+
+                const reminderId = Number(item.dataset.reminderId);
+                const reminder = state.reminders.find(r => r.id === reminderId);
+                if (!reminder) return;
+
+                if (target.dataset.action === 'remove-reminder' || target.closest('[data-action="remove-reminder"]')) {
+                    // Remove reminder
+                    state.reminders = state.reminders.filter(r => r.id !== reminderId);
+                    saveState();
+                    renderNotificationEditor();
+                    showToast('Reminder removed.', 'success');
+                } else if (target.dataset.key === 'text') {
+                    // Update text
+                    reminder.text = target.value;
+                    saveState();
+                } else if (target.dataset.key === 'time') {
+                    // Update time
+                    reminder.time = target.value;
+                    saveState();
+                }
+            }
+            
+            /**
+             * (MODIFIED) Handles permission request for notifications
+             */
+            function setupNotifications() {
+                if (!('Notification' in window)) {
+                    showToast('Notifications are not supported on this browser.', 'error');
+                    dom.enableNotificationsBtn.disabled = true;
+                    return;
+                }
+                
+                // Update UI based on saved permission state
+                if (Notification.permission === 'granted' && !state.notificationsEnabled) {
+                    state.notificationsEnabled = true; // Sync state
+                    saveState();
+                }
+                renderSettingsPage(); 
+                
+                // Add click handler for the enable button
+                dom.enableNotificationsBtn.onclick = async () => {
+                    const permission = await Notification.requestPermission();
+                    if (permission === 'granted') {
+                        state.notificationsEnabled = true;
+                        saveState();
+                        renderSettingsPage();
+                        showToast('Notifications enabled!', 'success');
+                    } else {
+                        state.notificationsEnabled = false;
+                        saveState();
+                        showToast('Notifications were denied.', 'error');
+                    }
+                };
+            }
+
+            /**
+             * (NEW) Simple in-app reminder checker
+             * This only works if the app is open.
+             */
+            let lastCheckTime = '';
+            function checkReminders() {
+                if (!state.notificationsEnabled || Notification.permission !== 'granted') {
+                    return;
+                }
+
+                const d = new Date();
+                const currentTime = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                
+                // Only run once per minute
+                if (currentTime === lastCheckTime) {
+                    return;
+                }
+                lastCheckTime = currentTime;
+
+                for (const reminder of state.reminders) {
+                    if (reminder.time === currentTime) {
+                        console.log(`Firing reminder: ${reminder.text}`);
+                        // Fire the notification
+                        new Notification('Joseph Planner Reminder', {
+                            body: reminder.text,
+                            icon: 'icons/icon-192x192.png' // Optional: use your PWA icon
+                        });
+                    }
+                }
+            }
+
+
+            /* --- 11. PWA & Initialization --- */
+
+            function registerServiceWorker() {
+                if ('serviceWorker' in navigator) {
+                    window.addEventListener('load', () => {
+                        navigator.serviceWorker.register('/sw.js') // This file MUST be separate
+                            .then(registration => {
+                                console.log('ServiceWorker registration successful: ', registration.scope);
+                            })
+                            .catch(error => {
+                                console.log('ServiceWorker registration failed: ', error);
+                            });
+                    });
+                }
+            }
+
+            /**
+             * Master initialization function (MODIFIED)
+             */
+            function init() {
+                // 1. Load data
+                loadState();
+
+                // 2. Apply settings
+                applyTheme(state.theme);
+                applyFontSize(state.fontSize);
+
+                // 3. Render initial page
+                renderHomePage();
+                
+                // 4. Set up all event listeners
+                
+                // App-wide
+                dom.themeToggle.addEventListener('change', (e) => {
+                    const newTheme = e.target.checked ? 'dark' : 'light';
+                    applyTheme(newTheme);
+                    saveState();
+                });
+                window.addEventListener('beforeunload', saveState);
+
+                // Navigation
+                document.querySelector('.sidebar-nav').addEventListener('click', handleNavigation);
+                document.querySelector('.bottom-nav').addEventListener('click', handleNavigation);
+                dom.mainContent.addEventListener('click', (e) => {
+                    if (e.target.matches('.nav-link-inline')) {
+                        handleNavigation(e);
+                    }
+                });
+
+                // Home
+                dom.quickActionProgress.addEventListener('click', () => showPage('page-progress'));
+                dom.quickActionSnapshot.addEventListener('click', saveSnapshot);
+
+                // Progress
+                dom.taskList.addEventListener('click', (e) => {
+                    const item = e.target.closest('.task-list-item');
+                    if (!item) return;
+                    if (e.target.tagName === 'LABEL') {
+                        const checkbox = item.querySelector('input[type="checkbox"]');
+                        if (checkbox) checkbox.checked = !checkbox.checked;
+                    }
+                    toggleTask(Number(item.dataset.taskId));
+                });
+                dom.saveSnapshotBtn.addEventListener('click', saveSnapshot);
+
+                // Stats
+                dom.exportCsvBtn.addEventListener('click', exportCSV);
+                dom.clearHistoryBtn.addEventListener('click', clearHistory);
+                
+                // Settings
+                dom.fontSizeSlider.addEventListener('input', (e) => applyFontSize(e.target.value));
+                dom.fontSizeSlider.addEventListener('change', saveState); 
+
+                dom.editTasksList.addEventListener('input', handleTaskTemplateChange);
+                dom.editTasksList.addEventListener('click', handleTaskTemplateChange);
+                dom.addTaskTemplateBtn.addEventListener('click', addTaskTemplate);
+
+                dom.saveScheduleBtn.addEventListener('click', saveSchedule);
+                dom.restoreScheduleBtn.addEventListener('click', () => restoreDefault('schedule'));
+                dom.addScheduleTimeBtn.addEventListener('click', addScheduleTimeRow); 
+                dom.editScheduleTable.addEventListener('click', handleScheduleTableClicks);
+
+                // Notifications (MODIFIED)
+                setupNotifications(); // Handles permission button
+                dom.addReminderBtn.addEventListener('click', handleAddReminder);
+                dom.editNotificationsList.addEventListener('click', handleNotificationChange);
+                dom.editNotificationsList.addEventListener('input', handleNotificationChange);
+
+                // 5. Register PWA
+                registerServiceWorker();
+
+                // 6. Start reminder check loop (NEW)
+                setInterval(checkReminders, 15000); // Check every 15 seconds
+                checkReminders(); // Check once on load
+
+                // 7. Enable animations
+                dom.body.classList.remove('preload');
+            }
+
+            // --- Let's go! ---
+            init();
+        });
+    </script>
+</body>
+</html>
